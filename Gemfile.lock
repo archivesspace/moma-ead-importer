@@ -1,0 +1,14 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    nokogiri (1.6.2.1-java)
+    rubyzip (1.1.6)
+    simple_xlsx_reader (0.9.8)
+      nokogiri
+      rubyzip
+
+PLATFORMS
+  java
+
+DEPENDENCIES
+  simple_xlsx_reader
