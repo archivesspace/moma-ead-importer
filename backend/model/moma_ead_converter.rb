@@ -25,6 +25,21 @@ class MomaEADConverter < EADConverter
   def self.configure
     super
 
+    # c, c1, c2, etc...
+    (0..12).to_a.map {|i| "c" + (i+100).to_s[1..-1]}.push('c').each do |c|
+      with c do
+        make :archival_object, {
+          :level => att('level') || 'file',
+          :other_level => att('otherlevel'),
+          :ref_id => att('id'),
+          :resource => ancestor(:resource),
+          :parent => ancestor(:archival_object),
+          :publish => att('audience') != 'internal'
+        }
+      end
+    end
+
+
     with 'eadid' do
       set :ead_id, inner_xml
       set :ead_location, att('url')
