@@ -1,8 +1,20 @@
 #!/usr/bin/env ruby
 
-apppath = "../../archivesspace/backend/app"
+class Log
 
-puts $:.unshift("../../archivesspace/common")
+  def self.debug(msg)
+    puts msg
+  end
+
+  def self.warn(msg)
+    puts msg
+  end
+end
+
+
+apppath = "../../archivesspace-1.0.9/backend/app"
+
+puts $:.unshift("../../archivesspace-1.0.9/common")
 
 require_relative "#{apppath}/converters/converter"
 require_relative "#{apppath}/converters/ead_converter"
