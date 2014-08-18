@@ -42,8 +42,14 @@ class MomaEADConverter < EADConverter
       end
     end
 
+    with 'unittitle' do |node|
+      ancestor(:resource, :archival_object) do |obj|
+        obj.title = node.inner_xml.strip.sub(/<unitdate[^>]*>[^<]*<\/unitdate>/, '')
+      end
+    end
+
     with 'physdesc' do
-      extent_string = inner_xml.strip
+      extent_string = inner_xml.gsub(/<lb\s?\/>/, "\n")
 
       quantified = case extent_string
                    when /([0-9\.]+)\s+linear\sf(oo|ee)t/
@@ -64,6 +70,7 @@ class MomaEADConverter < EADConverter
       end
 
     end
+
 
     with 'container' do
 
@@ -87,7 +94,7 @@ class MomaEADConverter < EADConverter
 
       (1..3).to_a.each do |i|
         next unless cont["type_#{i}"].nil?
-        cont["type_#{i}"] = att('type')
+        cont["type_#{i}"] = att('type').strip
         cont["indicator_#{i}"] = inner_xml
         if cont["indicator_#{i}"].length == 0
           cont["indicator_#{i}"] = 'BLANK'
@@ -125,7 +132,7 @@ class MomaEADConverter < EADConverter
     when "archival_object"
       ao = @batch.working_area.last
 
-      unless ao.title || ao.dates.length > 0
+      unless (ao.title && ao.title.length > 0) || ao.dates.length > 0
         ao.title = "Untitled"
       end
 
@@ -142,6 +149,7 @@ class MomaEADConverter < EADConverter
     super unless inner_xml.empty?
   end
 
+
   # Overrides of XML::Sax methods
 
   #overrides a memory busting method
@@ -155,6 +163,9 @@ class MomaEADConverter < EADConverter
     when :note_singlepart
       return if properties[:content].empty?
 
+    when :note_multipart
+      return if properties[:subnotes]['content'].empty?
+
     when :date
       return if properties[:expression].empty? && properties[:begin].nil? && properties[:end].nil?
 
@@ -165,6 +176,12 @@ class MomaEADConverter < EADConverter
 
     super
   end
+
+
+  def inner_xml
+    @node.inner_xml.strip.gsub(/<lb\s?\/>/, "\n").strip
+  end
+
 
   # restore older version of node closing logic
   def run
@@ -181,16 +198,9 @@ class MomaEADConverter < EADConverter
 
     @reader.each_with_index do |node, i|
 
-      puts "node #{node.local_name} - #{node.node_type}"
-
       case node.node_type
 
       when 1
-
-        if node.local_name == 'unittitle'
-          puts "Title: #{node.inner_xml}"
-        end
-
 
         # Nokogiri Reader won't create events for closing tags on empty nodes
         # https://github.com/sparklemotion/nokogiri/issues/928
@@ -198,11 +208,8 @@ class MomaEADConverter < EADConverter
         if @node_shadow && node.depth <= @node_shadow[1]
           handle_closer(@node_shadow)
         end
-        # else
-        #   puts "Node shadow #{@node_shadow.inspect}"
-        #   puts "Node depth #{node.depth}"
-        # end
-        handle_opener(node, false) 
+
+        handle_opener(node) 
       when 3
         handle_text(node)
       when 15
