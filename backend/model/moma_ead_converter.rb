@@ -39,12 +39,19 @@ class MomaEADConverter < EADConverter
       end
     end
 
+    with 'subtitle' do
+      ancestor(:resource) do |r|
+        r.finding_aid_title << inner_xml.sub(/^/, "<lb />")
+      end
+    end
+
 
     with 'eadid' do
       set :ead_id, inner_xml
       set :ead_location, att('url')
       set :id_0, inner_xml
     end
+
 
     with 'unitid' do |node|
       ancestor(:note_multipart, :resource, :archival_object) do |obj|
@@ -59,9 +66,45 @@ class MomaEADConverter < EADConverter
 
     with 'unittitle' do |node|
       ancestor(:resource, :archival_object) do |obj|
-        obj.title = node.inner_xml.strip.sub(/<unitdate[^>]*>[^<]*<\/unitdate>/, '')
+        obj.title = node.inner_xml.strip.sub(/<unitdate[^>]*>[^<]*<\/unitdate>/, '').gsub(/<unitdate\/>/, '').gsub(/[^:;]\s?<lb\s?\/>/, "; ").gsub(/([:;])\s?<lb\s?\/>/, '\1 ')
       end
     end
+
+    with 'unitdate' do |node|
+
+      norm_dates = (att('normal') || "").sub(/^\s/, '').sub(/\s$/, '').split('/')
+      if norm_dates.length == 1
+        norm_dates[1] = norm_dates[0]
+      end
+      norm_dates.map! {|d| d =~ /^([0-9]{4}(\-(1[0-2]|0[1-9])(\-(0[1-9]|[12][0-9]|3[01]))?)?)$/ ? d : nil}
+      
+      make :date, {
+        :date_type => att('type') || 'inclusive', 
+        :expression => inner_xml,
+        :label => att('label') || 'creation',
+        :begin => norm_dates[0],
+        :end => norm_dates[1],
+        :calendar => att('calendar'),
+        :era => att('era'),
+        :certainty => att('certainty')
+      } do |date|
+        set ancestor(:resource, :archival_object), :dates, date
+      end
+    end
+
+
+    with 'note' do |node|
+      make :note_multipart, {
+        :type => 'odd',
+        :subnotes => {
+          'jsonmodel_type' => 'note_text',
+          'content' => inner_xml
+        }
+      } do | note|
+        set ancestor(:archival_object), :notes, note
+      end
+    end
+
 
     with 'physdesc' do
       extent_string = inner_xml.gsub(/<lb\s?\/>/, "\n")
@@ -127,7 +170,6 @@ class MomaEADConverter < EADConverter
 
   def close_context(type)
     if @batch.working_area.last.jsonmodel_type != type.to_s
-      puts @batch.working_area.inspect
       raise "Unexpected Object Type in Queue: Expected #{type} got #{@batch.working_area.last.jsonmodel_type}"
     end
 
@@ -194,7 +236,8 @@ class MomaEADConverter < EADConverter
 
 
   def inner_xml
-    @node.inner_xml.strip.gsub(/<lb\s?\/>/, "\n").strip
+    xml = super
+    xml.gsub(/<unitdate\/>/, '')
   end
 
 

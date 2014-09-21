@@ -12,15 +12,15 @@ class Log
 end
 
 
-apppath = "../../archivesspace-1.0.9/backend/app"
+apppath = "../../archivesspace/backend/app"
 
-puts $:.unshift("../../archivesspace-1.0.9/common")
+puts $:.unshift("../../archivesspace/common")
 
 require_relative "#{apppath}/converters/converter"
 require_relative "#{apppath}/converters/ead_converter"
 require_relative "../backend/model/moma_ead_converter"
 
-JSONModel.init(:url => "http://localhost:4567", :client_mode => true)
+JSONModel.init(:url => "http://localhost:8089", :client_mode => true)
 JSONModel.set_repository(2)
 
 
